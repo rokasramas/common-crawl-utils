@@ -3,7 +3,8 @@
             [clojure.java.io :as io]
             [clojure.string :as str]
             [common-crawl-utils.constants :as constants]
-            [org.httpkit.client :as http]
+            [clj-http.client :as http]
+            [slingshot.slingshot :refer [try+]]
             [warc-clojure.core :as warc])
   (:import (java.io InputStreamReader BufferedReader)
            (java.util.zip GZIPInputStream)
@@ -25,19 +26,20 @@
       (warc/get-response-records-seq)))
 
 (defn get-http-error [{:keys [body error status]}]
-  {:message   (or (when error (.getMessage ^Throwable error))
-                  (format "HTTP status %s: `%s`" status body))
+  {:status    status
+   :message   (or (.getMessage ^Throwable error) body)
    :timestamp (str (Instant/now))})
 
 (defn request-json [url]
-  @(http/request {:url     url
-                  :method  :get
-                  :timeout constants/http-timeout}
-                 (fn [{:keys [error status] :as response}]
-                   (cond-> response
-                           (= 200 (:status response)) (update :body #(json/decode % true))
-                           (or (some? error)
-                               (not= status 200)) (assoc :error (get-http-error response))))))
+  (try+
+    (http/get url
+              {:method  :get
+               :timeout constants/http-timeout
+               :as      :json})
+    (catch [:type :clj-http.client/unexceptional-status] r
+      {:url url :error (get-http-error r)})
+    (catch Throwable t
+      {:url url :error (get-http-error {:error t})})))
 
 (defn read-jsonl [s]
   (map #(json/parse-string % true)

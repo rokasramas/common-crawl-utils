@@ -4,4 +4,4 @@
 
 (def cc-s3-base-url "https://data.commoncrawl.org/")
 
-(def http-timeout 10000)
+(def http-timeout 10)

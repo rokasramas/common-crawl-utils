@@ -12,7 +12,7 @@
         coordinate-1 {:offset        "272838009",
                       :digest        "U3FWVBI7XZ2KVBD72MRR7TCHHXSX2FJS",
                       :mime          "text/html",
-                      :charset       "UTF-8",
+                      :encoding      "UTF-8",
                       :mime-detected "text/html",
                       :filename      "crawl-data/CC-MAIN-2019-09/segments/1550247481992.39/warc/CC-MAIN-20190217111746-20190217133746-00381.warc.gz",
                       :status        "200",

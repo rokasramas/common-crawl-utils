@@ -2,7 +2,10 @@
   (:require [clojure.tools.logging :as log]
             [common-crawl-utils.constants :as constants]
             [common-crawl-utils.utils :as utils]
-            [org.httpkit.client :as http]))
+            [clj-http.client :as http]
+            [clj-http.core :as http-core]
+            [clj-http.conn-mgr :as http-conn]
+            [slingshot.slingshot :refer [try+]]))
 
 (def cdx-params [:url :from :to :matchType :limit :sort :filter
                  :fl :page :pageSize :showNumPages :showPagedIndex])
@@ -16,18 +19,24 @@
             (some? cdx-api) (assoc :cdx-api cdx-api)
             (some? error) (assoc :error error))))
 
-(defn call-cdx-api [{:keys [cdx-api timeout] :as query}]
+(defn call-cdx-api [{:keys [cdx-api connection-manager http-client] :as query}]
   (log/debugf "Calling `%s` with query `%s`" cdx-api (select-keys query cdx-params))
-  @(http/request {:url          cdx-api
-                  :method       :get
-                  :timeout      (or timeout constants/http-timeout)
-                  :query-params (-> query (select-keys cdx-params) (assoc :output "json"))}
-                 (fn [{:keys [body error status] :as response}]
-                   (cond
-                     (= status 404) []
-                     (or (some? error)
-                         (not= status 200)) (-> query (assoc :error (utils/get-http-error response)) (vector))
-                     :else (utils/read-jsonl body)))))
+  (try+
+    (-> {:url                cdx-api
+         :method             :get
+         :connection-manager connection-manager
+         :http-client        http-client
+         :query-params       (-> query (select-keys cdx-params) (assoc :output "json"))}
+        (http/request)
+        (get :body)
+        (utils/read-jsonl))
+    (catch [:status 404] _
+      (log/debugf "No results found in crawl `%s` for query `%s`" cdx-api (select-keys query cdx-params))
+      [])
+    (catch [:type :clj-http.client/unexceptional-status] r
+      (-> query (assoc :error (utils/get-http-error r)) (vector)))
+    (catch Throwable t
+      (-> query (assoc :error (utils/get-http-error {:error t})) (vector)))))
 
 (defn get-total-pages [{:keys [cdx-api] :as query}]
   (let [[{:keys [pages error]}] (when cdx-api (-> query (assoc :showNumPages true) (call-cdx-api)))]
@@ -35,13 +44,17 @@
             (some? pages) (assoc :pages pages)
             (some? error) (assoc :error error))))
 
-(defn- validate-query [{:keys [cdx-api error page pages showNumPages] :as query}]
-  (cond-> query
-          (some? error) (dissoc :error)
-          (some? showNumPages) (dissoc :showNumPages)
-          (nil? cdx-api) (get-most-recent-cdx-api)
-          (nil? pages) (get-total-pages)
-          (nil? page) (assoc :page 0)))
+(defn- validate-query
+  [{:keys [cdx-api error page pages showNumPages connection-manager http-client timeout] :as query}]
+  (let [cm (or connection-manager (http-conn/make-reusable-conn-manager {:timeout (or timeout constants/http-timeout)}))]
+    (cond-> query
+            (some? error) (dissoc :error)
+            (some? showNumPages) (dissoc :showNumPages)
+            (nil? cdx-api) (get-most-recent-cdx-api)
+            (nil? pages) (get-total-pages)
+            (nil? page) (assoc :page 0)
+            (nil? connection-manager) (assoc :connection-manager cm)
+            (nil? http-client) (assoc :http-client (http-core/build-http-client {} false cm)))))
 
 (defn fetch
   "Issues HTTP request to Common Crawl Index Server and returns a lazy sequence with content coordinates
