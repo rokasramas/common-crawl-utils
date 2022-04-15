@@ -1,9 +1,9 @@
-{:deps    {cheshire/cheshire              {:mvn/version "5.9.0"}
-           ch.qos.logback/logback-classic {:mvn/version "1.2.3"}
-           http-kit/http-kit              {:mvn/version "2.3.0"}
-           org.clojure/clojure            {:mvn/version "1.10.1"}
-           org.clojure/core.async         {:mvn/version "0.4.500"}
-           org.clojure/tools.logging      {:mvn/version "0.5.0"}
+{:deps    {cheshire/cheshire              {:mvn/version "5.10.2"}
+           ch.qos.logback/logback-classic {:mvn/version "1.2.11"}
+           http-kit/http-kit              {:mvn/version "2.5.3"}
+           org.clojure/clojure            {:mvn/version "1.11.1"}
+           org.clojure/core.async         {:mvn/version "1.5.648"}
+           org.clojure/tools.logging      {:mvn/version "1.2.4"}
            org.jwat/jwat-warc             {:mvn/version "1.1.1"}
            warc-clojure/warc-clojure      {:mvn/version "0.2.6"}}
  :paths   ["src"]
@@ -11,7 +11,7 @@
                       :extra-deps  {com.cognitect/test-runner {:git/url "https://github.com/cognitect-labs/test-runner.git"
                                                                :sha     "028a6d41ac9ac5d5c405dfc38e4da6b4cc1255d5"}}
                       :main-opts   ["-m" "cognitect.test-runner"]}
-           :kibit    {:extra-deps {jonase/kibit {:mvn/version "0.1.6"}}
+           :kibit    {:extra-deps {jonase/kibit {:mvn/version "0.1.8"}}
                       :main-opts  ["-e" "(require,'[kibit.driver,:as,k])(k/external-run,[\"src\"],nil)"]}
            :eastwood {:main-opts  ["-m" "eastwood.lint" "{:source-paths,[\"src\"]}"]
-                      :extra-deps {jonase/eastwood {:mvn/version "RELEASE"}}}}}
+                      :extra-deps {jonase/eastwood {:mvn/version "1.2.3"}}}}}
