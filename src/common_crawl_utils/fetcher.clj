@@ -18,16 +18,18 @@
      :header (.next (.useDelimiter rdr "\r\n\r\n"))
      :html   (.next (.useDelimiter rdr "\\A"))}))
 
-(defn fetch-single-coordinate-content [coordinate]
-  @(http/request {:url     (str constants/cc-s3-base-url (get coordinate :filename))
-                  :method  :get
-                  :headers {"range" (get-range-header coordinate)}
-                  :as      :byte-array
-                  :timeout constants/http-timeout}
-                 (fn [{:keys [body error status] :as response}]
-                   (if (or (some? error) (not= status 206))
-                     (assoc coordinate :error (utils/get-http-error response))
-                     (-> coordinate (dissoc :error) (assoc :content (read-content body)))))))
+(defn fetch-single-coordinate-content
+  ([coordinate] (fetch-single-coordinate-content coordinate constants/cc-s3-base-url))
+  ([coordinate cc-s3-base-url]
+   @(http/request {:url     (str cc-s3-base-url (get coordinate :filename))
+                   :method  :get
+                   :headers {"range" (get-range-header coordinate)}
+                   :as      :byte-array
+                   :timeout constants/http-timeout}
+                  (fn [{:keys [body error status] :as response}]
+                    (if (or (some? error) (not= status 206))
+                      (assoc coordinate :error (utils/get-http-error response))
+                      (-> coordinate (dissoc :error) (assoc :content (read-content body))))))))
 
 (defn fetch-content
   "Fetches coordinates from Common Crawl Index Server along with their content from AWS

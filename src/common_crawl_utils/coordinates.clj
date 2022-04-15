@@ -68,6 +68,6 @@
 
 (defn get-coordinate-count
   ([hosts]
-   (get-coordinate-count hosts (:cdx-api (utils/get-most-recent-crawl constants/index-collinfo))))
+   (get-coordinate-count hosts (:cdx-api (utils/get-most-recent-crawl))))
   ([hosts cdx-api]
    (map #(vector % (count (fetch {:url % :matchType "host" :cdx-api cdx-api}))) hosts)))
