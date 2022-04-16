@@ -3,7 +3,6 @@
             [common-crawl-utils.coordinates :as coordinates]
             [common-crawl-utils.utils :as utils]
             [clj-http.client :as http]
-            [slingshot.slingshot :refer [try+]]
             [clojure.core.async :refer [chan <! >! go-loop close!]]
             [slingshot.slingshot :refer [try+]])
   (:import (java.io ByteArrayInputStream)
