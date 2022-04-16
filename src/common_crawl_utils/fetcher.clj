@@ -5,7 +5,8 @@
             [clj-http.client :as http]
             [slingshot.slingshot :refer [try+]]
             [clj-http.conn-mgr :as http-conn]
-            [clj-http.core :as http-core])
+            [clj-http.core :as http-core]
+            [clojure.core.async :refer [chan <! >! go-loop close!]])
   (:import (java.io ByteArrayInputStream)
            (java.util Scanner)
            (java.util.zip GZIPInputStream)))
@@ -60,3 +61,26 @@
      (map (fn [{error :error :as coordinate}]
             (cond-> coordinate (nil? error) (fetch-single-coordinate-content cc-s3-base-url opts)))
           (coordinates/fetch query)))))
+
+(defn fetch-content-async
+  "Async version of `fetch-content` which returns a content channel"
+  ([query] (fetch-content-async query constants/cc-s3-base-url))
+  ([{:keys [timeout connection-manager http-client] :as query} cc-s3-base-url]
+   (let [opts {:timeout            (or timeout constants/http-timeout)
+               :connection-manager connection-manager
+               :http-client        http-client}
+         page-chan (coordinates/fetch-async query)
+         coord-chan (chan 100)
+         content-chan (chan 100)]
+     (go-loop []
+       (if-some [coord-page (<! page-chan)]
+         (do
+           (doseq [coord coord-page]
+             (>! coord-chan coord))
+           (recur))
+         (close! coord-chan)))
+     (go-loop []
+       (when-some [{error :error :as coordinate} (<! coord-chan)]
+         (>! content-chan (cond-> coordinate (nil? error) (fetch-single-coordinate-content cc-s3-base-url opts)))
+         (recur)))
+     content-chan)))

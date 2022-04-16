@@ -1,5 +1,6 @@
 (ns common-crawl-utils.coordinates
   (:require [clojure.tools.logging :as log]
+            [clojure.core.async :refer [chan >!! >! go-loop close!]]
             [common-crawl-utils.constants :as constants]
             [common-crawl-utils.utils :as utils]
             [clj-http.client :as http]
@@ -78,6 +79,26 @@
         (zero? pages) (vector)
         (< page pages) (concat (call-cdx-api validated-query)
                                (fetch (update validated-query :page inc)))))))
+
+(defn fetch-async
+  "Async version of `fetch` which returns a coordinate page channel"
+  [query]
+  (let [page-chan (chan 1)]
+    (let [{:keys [pages error] :as validated-query} (validate-query query)]
+      (cond
+        (some? error) (do
+                        (>!! page-chan [validated-query])
+                        (close! page-chan))
+        (pos-int? (:page query)) (do
+                                   (>!! page-chan (call-cdx-api validated-query))
+                                   (close! page-chan))
+        :else (go-loop [[page & pages] (range pages)]
+                (if (some? page)
+                  (do
+                    (>! page-chan (call-cdx-api (assoc validated-query :page page)))
+                    (recur pages))
+                  (close! page-chan)))))
+    page-chan))
 
 (defn get-coordinate-count
   ([hosts]
