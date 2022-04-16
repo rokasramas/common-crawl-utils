@@ -27,8 +27,9 @@
 
 (defn get-http-error [{:keys [body error status]}]
   {:status    status
-   :message   (or (.getMessage ^Throwable error) body)
-   :timestamp (str (Instant/now))})
+   :timestamp (str (Instant/now))
+   :message   (or (when (some? error) (.getMessage ^Throwable error))
+                  (when (some? body) (cond-> body (bytes? body) (slurp))))})
 
 (defn request-json [url]
   (try+
