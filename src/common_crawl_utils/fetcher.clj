@@ -3,9 +3,7 @@
             [common-crawl-utils.coordinates :as coordinates]
             [common-crawl-utils.utils :as utils]
             [clj-http.client :as http]
-            [slingshot.slingshot :refer [try+]]
-            [clj-http.conn-mgr :as http-conn]
-            [clj-http.core :as http-core])
+            [slingshot.slingshot :refer [try+]])
   (:import (java.io ByteArrayInputStream)
            (java.util Scanner)
            (java.util.zip GZIPInputStream)))
@@ -54,9 +52,9 @@
   (take 10 (fetch-content {:url \"http://www.cnn.com\" :matchType \"host\"}))"
   ([query] (fetch-content query constants/cc-s3-base-url))
   ([{:keys [timeout connection-manager http-client] :as query} cc-s3-base-url]
-   (let [cm (or connection-manager (http-conn/make-reusable-conn-manager {:timeout (or timeout constants/http-timeout)}))
-         opts {:connection-manager cm
-               :http-client        (or http-client (http-core/build-http-client {} false cm))}]
+   (let [opts {:timeout            (or timeout constants/http-timeout)
+               :connection-manager connection-manager
+               :http-client        http-client}]
      (map (fn [{error :error :as coordinate}]
             (cond-> coordinate (nil? error) (fetch-single-coordinate-content cc-s3-base-url opts)))
           (coordinates/fetch query)))))
