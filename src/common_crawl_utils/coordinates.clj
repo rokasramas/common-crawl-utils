@@ -4,8 +4,6 @@
             [common-crawl-utils.constants :as constants]
             [common-crawl-utils.utils :as utils]
             [clj-http.client :as http]
-            [clj-http.core :as http-core]
-            [clj-http.conn-mgr :as http-conn]
             [slingshot.slingshot :refer [try+]]))
 
 (def cdx-params [:url :from :to :matchType :limit :sort :filter
@@ -20,11 +18,12 @@
             (some? cdx-api) (assoc :cdx-api cdx-api)
             (some? error) (assoc :error error))))
 
-(defn call-cdx-api [{:keys [cdx-api connection-manager http-client] :as query}]
+(defn call-cdx-api [{:keys [cdx-api timeout connection-manager http-client] :as query}]
   (log/debugf "Calling `%s` with query `%s`" cdx-api (select-keys query cdx-params))
   (try+
     (-> {:url                cdx-api
          :method             :get
+         :timeout            (or timeout constants/http-timeout)
          :connection-manager connection-manager
          :http-client        http-client
          :query-params       (-> query (select-keys cdx-params) (assoc :output "json"))}
@@ -45,17 +44,13 @@
             (some? pages) (assoc :pages pages)
             (some? error) (assoc :error error))))
 
-(defn- validate-query
-  [{:keys [cdx-api error page pages showNumPages connection-manager http-client timeout] :as query}]
-  (let [cm (or connection-manager (http-conn/make-reusable-conn-manager {:timeout (or timeout constants/http-timeout)}))]
-    (cond-> query
-            (some? error) (dissoc :error)
-            (some? showNumPages) (dissoc :showNumPages)
-            (nil? cdx-api) (get-most-recent-cdx-api)
-            (nil? pages) (get-total-pages)
-            (nil? page) (assoc :page 0)
-            (nil? connection-manager) (assoc :connection-manager cm)
-            (nil? http-client) (assoc :http-client (http-core/build-http-client {} false cm)))))
+(defn- validate-query [{:keys [cdx-api error page pages showNumPages] :as query}]
+  (cond-> query
+          (some? error) (dissoc :error)
+          (some? showNumPages) (dissoc :showNumPages)
+          (nil? cdx-api) (get-most-recent-cdx-api)
+          (nil? pages) (get-total-pages)
+          (nil? page) (assoc :page 0)))
 
 (defn fetch
   "Issues HTTP request to Common Crawl Index Server and returns a lazy sequence with content coordinates
