@@ -18,12 +18,13 @@
             (some? cdx-api) (assoc :cdx-api cdx-api)
             (some? error) (assoc :error error))))
 
-(defn call-cdx-api [{:keys [cdx-api timeout connection-manager http-client] :as query}]
+(defn call-cdx-api [{:keys [cdx-api connection-manager http-client] :as query
+                     :or   {connection-manager constants/default-connection-manager
+                            http-client        constants/default-http-client}}]
   (log/debugf "Calling `%s` with query `%s`" cdx-api (select-keys query cdx-params))
   (try+
     (-> {:url                cdx-api
          :method             :get
-         :timeout            (or timeout constants/http-timeout)
          :connection-manager connection-manager
          :http-client        http-client
          :query-params       (-> query (select-keys cdx-params) (assoc :output "json"))}
