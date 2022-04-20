@@ -1,6 +1,7 @@
 (ns common-crawl-utils.fetcher
   (:require [common-crawl-utils.constants :as constants]
             [common-crawl-utils.coordinates :as coordinates]
+            [common-crawl-utils.s3 :as s3]
             [common-crawl-utils.utils :as utils]
             [clj-http.client :as http]
             [slingshot.slingshot :refer [try+]])
@@ -22,17 +23,21 @@
 (defn fetch-single-coordinate-content
   ([coordinate] (fetch-single-coordinate-content coordinate constants/cc-s3-base-url))
   ([coordinate cc-s3-base-url] (fetch-single-coordinate-content coordinate cc-s3-base-url {}))
-  ([coordinate cc-s3-base-url {:keys [connection-manager http-client]
+  ([coordinate cc-s3-base-url {:keys [s3-client connection-manager http-client]
                                :or   {connection-manager constants/default-connection-manager
                                       http-client        constants/default-http-client}}]
    (try+
-     (let [{body :body} (http/request {:url                (str cc-s3-base-url (get coordinate :filename))
-                                       :method             :get
-                                       :headers            {"range" (get-range-header coordinate)}
-                                       :as                 :byte-array
-                                       :connection-manager connection-manager
-                                       :http-client        http-client})]
-       (-> coordinate (dissoc :error) (assoc :content (read-content body))))
+     (let [req (-> (if (some? s3-client)
+                     (s3/build-cc-s3-request s3-client coordinate)
+                     {:url    (str cc-s3-base-url (get coordinate :filename))
+                      :method :get})
+                   (assoc :as :byte-array
+                          :connection-manager connection-manager
+                          :http-client http-client)
+                   (assoc-in [:headers "range"] (get-range-header coordinate)))
+           resp (http/request req)
+           content (read-content (:body resp))]
+       (-> coordinate (dissoc :error) (assoc :content content)))
      (catch [:type :clj-http.client/unexceptional-status] r
        (assoc coordinate :error (utils/get-http-error r)))
      (catch Throwable t
@@ -54,7 +59,7 @@
   (take 10 (fetch-content {:url \"http://www.cnn.com\" :matchType \"host\"}))"
   ([query] (fetch-content query constants/cc-s3-base-url))
   ([query cc-s3-base-url]
-   (let [opts (select-keys query [:connection-manager :http-client])]
+   (let [opts (select-keys query [:s3-client :connection-manager :http-client])]
      (map (fn [{error :error :as coordinate}]
             (cond-> coordinate (nil? error) (fetch-single-coordinate-content cc-s3-base-url opts)))
           (coordinates/fetch query)))))
