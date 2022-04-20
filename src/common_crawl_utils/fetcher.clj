@@ -68,10 +68,8 @@
 (defn fetch-content-async
   "Async version of `fetch-content` which returns a content channel"
   ([query] (fetch-content-async query constants/cc-s3-base-url))
-  ([{:keys [timeout connection-manager http-client] :as query} cc-s3-base-url]
-   (let [opts {:timeout            (or timeout constants/http-timeout)
-               :connection-manager connection-manager
-               :http-client        http-client}
+  ([query cc-s3-base-url]
+   (let [opts (select-keys query [:s3-client :connection-manager :http-client])
          page-chan (coordinates/fetch-async query)
          coord-chan (chan 100)
          content-chan (chan 100)]
