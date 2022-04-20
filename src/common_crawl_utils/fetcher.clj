@@ -81,7 +81,9 @@
            (recur))
          (close! coord-chan)))
      (go-loop []
-       (when-some [{error :error :as coordinate} (<! coord-chan)]
-         (>! content-chan (cond-> coordinate (nil? error) (fetch-single-coordinate-content cc-s3-base-url opts)))
-         (recur)))
+       (if-some [{error :error :as coordinate} (<! coord-chan)]
+         (do
+           (>! content-chan (cond-> coordinate (nil? error) (fetch-single-coordinate-content cc-s3-base-url opts)))
+           (recur))
+         (close! content-chan)))
      content-chan)))
