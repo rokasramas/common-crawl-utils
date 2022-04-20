@@ -34,9 +34,10 @@
 (defn request-json [url]
   (try+
     (http/get url
-              {:method  :get
-               :timeout constants/http-timeout
-               :as      :json})
+              {:method             :get
+               :as                 :json
+               :connection-manager constants/default-connection-manager
+               :http-client        constants/default-http-client})
     (catch [:type :clj-http.client/unexceptional-status] r
       {:url url :error (get-http-error r)})
     (catch Throwable t
