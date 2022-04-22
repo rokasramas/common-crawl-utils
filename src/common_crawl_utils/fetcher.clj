@@ -59,7 +59,7 @@
   ([coordinates] (fetch-coordinate-content coordinates constants/cc-s3-base-url))
   ([coordinates cc-s3-base-url] (fetch-coordinate-content coordinates cc-s3-base-url {}))
   ([coordinates cc-s3-base-url opts]
-   (map (fn [{error :error :as coordinate}]
+   (pmap (fn [{error :error :as coordinate}]
           (cond-> coordinate (nil? error) (fetch-single-coordinate-content cc-s3-base-url opts)))
         coordinates)))
 
