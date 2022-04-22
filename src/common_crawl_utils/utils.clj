@@ -2,14 +2,22 @@
   (:require [cheshire.core :as json]
             [clojure.java.io :as io]
             [clojure.string :as str]
+            [clojure.instant :as instant]
             [common-crawl-utils.constants :as constants]
             [clj-http.client :as http]
             [slingshot.slingshot :refer [try+]]
             [warc-clojure.core :as warc])
   (:import (java.io InputStreamReader BufferedReader)
            (java.util.zip GZIPInputStream)
+           (java.text SimpleDateFormat)
            (java.time Instant)
            (org.jwat.warc WarcReaderFactory)))
+
+(def timestamp-formatter (SimpleDateFormat. "yyyyMMddHHmmss"))
+
+(defn parse-timestamp [ts]
+  (let [inst (.toInstant (.parse timestamp-formatter ts))]
+    (instant/parse-timestamp vector (str inst))))
 
 (defn gzip-line-seq [path]
   (-> path

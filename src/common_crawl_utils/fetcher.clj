@@ -15,6 +15,11 @@
         length (Integer/parseInt length)]
     (format "bytes=%s-%s" offset (dec (+ offset length)))))
 
+(defn- read-arc-content [body]
+  (with-open [rdr (-> body (ByteArrayInputStream.) (GZIPInputStream.) (Scanner.))]
+    {:header (.next (.useDelimiter rdr "\r\n\r\n"))
+     :html   (.next (.useDelimiter rdr "\r\n\r\n"))}))
+
 (defn- read-content [body]
   (with-open [rdr (-> body (ByteArrayInputStream.) (GZIPInputStream.) (Scanner.))]
     {:warc   (.next (.useDelimiter rdr "\r\n\r\n"))
@@ -37,7 +42,8 @@
                           :http-client http-client)
                    (assoc-in [:headers "range"] (get-range-header coordinate)))
            resp (http/request req)
-           content (read-content (:body resp))]
+           year (first (utils/parse-timestamp (:timestamp coordinate)))
+           content (if (< 2012 year) (read-content (:body resp)) (read-arc-content (:body resp)))]
        (-> coordinate (dissoc :error) (assoc :content content)))
      (catch [:type :clj-http.client/unexceptional-status] r
        (assoc coordinate :error (utils/get-http-error r)))
