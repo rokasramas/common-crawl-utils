@@ -59,10 +59,9 @@
   ([coordinates] (fetch-coordinate-content coordinates constants/cc-s3-base-url))
   ([coordinates cc-s3-base-url] (fetch-coordinate-content coordinates cc-s3-base-url {}))
   ([coordinates cc-s3-base-url opts]
-   (let [opts (select-keys opts [:s3-client :connection-manager :http-client])]
-     (map (fn [{error :error :as coordinate}]
-            (cond-> coordinate (nil? error) (fetch-single-coordinate-content cc-s3-base-url opts)))
-          coordinates))))
+   (map (fn [{error :error :as coordinate}]
+          (cond-> coordinate (nil? error) (fetch-single-coordinate-content cc-s3-base-url opts)))
+        coordinates)))
 
 (defn fetch-content
   "Fetches coordinates from Common Crawl Index Server along with their content from AWS
@@ -81,6 +80,6 @@
   ([query] (fetch-content query constants/cc-s3-base-url))
   ([query cc-s3-base-url]
    (let [opts (select-keys query [:s3-client :connection-manager :http-client])]
-     (map (fn [{error :error :as coordinate}]
-            (cond-> coordinate (nil? error) (fetch-single-coordinate-content cc-s3-base-url opts)))
-          (coordinates/fetch query)))))
+     (-> query
+         (coordinates/fetch)
+         (fetch-coordinate-content cc-s3-base-url opts)))))
