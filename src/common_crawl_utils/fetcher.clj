@@ -49,6 +49,21 @@
      (catch Throwable t
        (assoc coordinate :error (utils/get-http-error {:error t}))))))
 
+(defn fetch-coordinate-content
+  "Fetches coordinate content from AWS
+
+  Takes `coordinates` seq, produced by `common-crawl-utils.coordinates/fetch`
+
+  ;; To fetch limited number of coordinates with content
+  (take 10 (fetch-coordinate-content (common-crawl-utils.coordinates/fetch {:url \"http://www.cnn.com\"}))"
+  ([coordinates] (fetch-coordinate-content coordinates constants/cc-s3-base-url))
+  ([coordinates cc-s3-base-url] (fetch-coordinate-content coordinates cc-s3-base-url {}))
+  ([coordinates cc-s3-base-url opts]
+   (let [opts (select-keys opts [:s3-client :connection-manager :http-client])]
+     (map (fn [{error :error :as coordinate}]
+            (cond-> coordinate (nil? error) (fetch-single-coordinate-content cc-s3-base-url opts)))
+          coordinates))))
+
 (defn fetch-content
   "Fetches coordinates from Common Crawl Index Server along with their content from AWS
 
